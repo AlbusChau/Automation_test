@@ -4,7 +4,7 @@ from time import sleep
 from selenium.webdriver.common.by import By
 
 def test_back_browser(driver):
-    driver.get('https://opensource-demo.orangehrmlive.com/')
+    
     assert driver.title == 'OrangeHRM'
 
     driver.get('https://www.google.com')
