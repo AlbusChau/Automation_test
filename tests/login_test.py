@@ -2,7 +2,7 @@ import pytest
 from selenium import webdriver
 from time import sleep
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.wait import WebDriverWait
+
 def test_login(driver):
     # Define locator for the username input field
     username_field = (By.NAME, "username")
