@@ -1,8 +1,5 @@
 from pages.loginPage import LoginPage
-
-
 class TestLogin:
-
     def test_login(self, driver):
         login_page = LoginPage(driver)
         login_page.login("Admin", "admin123")

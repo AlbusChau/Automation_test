@@ -1,5 +1,6 @@
 import pytest
 from selenium import webdriver
+from selenium.webdriver.support.wait import WebDriverWait
 
 @pytest.fixture
 def driver():
@@ -23,3 +24,10 @@ def driver():
 
     # After the test finishes, close the browser and release resources
     driver.quit()
+
+
+@pytest.fixture
+def wait(driver):
+    # Reusable explicit wait (10s) for any page/test that needs it.
+    # Pass alongside `driver` and use wait.until(EC...) for SPA transitions.
+    return WebDriverWait(driver, 10)
