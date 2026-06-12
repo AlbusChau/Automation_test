@@ -5,21 +5,29 @@ from selenium.webdriver.support import expected_conditions as EC
 class RecruitmentPage:
     def __init__(self, driver):
         self.driver = driver
+        # --- Navigation ---
         self.recruitment_tab = (By.XPATH, '//span[text()="Recruitment"]')
         self.vacancies_tab = (By.LINK_TEXT, "Vacancies")
-        self.add_button = (By.XPATH, '//button[@class="oxd-button oxd-button--medium oxd-button--secondary"]')
-        self.page_title = (By.XPATH, '//h6[@class="oxd-text oxd-text--h6 orangehrm-main-title"]')
+        # --- Buttons ---
+        self.add_button = (By.XPATH, '//button[normalize-space()="Add"]')
+        self.save_button = (By.XPATH, '//button[normalize-space()="Save"]')
+        self.cancel_button = (By.XPATH, '//button[normalize-space()="Cancel"]')
+        self.search_button = (By.XPATH, '//button[@type="submit" and contains(., "Search")]')
+        # --- Page title ---
+        self.page_title = (By.XPATH, '//h6[contains(@class,"orangehrm-main-title")]')
+        # --- Text inputs ---
         self.vacancies_name = (By.XPATH, '//label[contains(text(), "Vacancy Name")]/ancestor::div[contains(@class, "oxd-input-group")]//input')
-        self.job_title_dropdown = (By.XPATH, '//div[@class="oxd-select-text oxd-select-text--active"]')
         self.description = (By.XPATH, '//div[contains(@class, "oxd-input-group")][.//label[text()="Description"]]//textarea')
         self.hiring_manager = (By.XPATH, '//div[contains(@class, "oxd-input-group")][.//label[contains(text(), "Hiring Manager")]]//input')
         self.position_number = (By.XPATH, '//div[contains(@class, "oxd-input-group")][.//label[contains(text(), "Number of Positions")]]//input')
+        # --- Job Title dropdown ---
+        self.job_title_dropdown = (By.XPATH, 
+            '//label[text()="Job Title"]/ancestor::div[contains(@class, "oxd-input-group")]//div[contains(@class, "oxd-select-wrapper")]/div[contains(@class, "oxd-select-text")]')
+        # --- Toggles ---
         self.active_toggle = (By.XPATH, '//div[contains(@class, "oxd-input-group")][.//label[contains(text(), "Active")]]''//span[contains(@class, "oxd-switch-input")]')
-        self.publish_toggle = (By.XPATH, '//div[contains(@class, "oxd-input-group")][.//label[contains(text(), "Publish in RSS Feed and Web Page")]]''//span[contains(@class, "oxd-switch-input")]')
-        self.save_button = (By.XPATH, '//button[@class="oxd-button oxd-button--medium oxd-button--secondary orangehrm-left-space"]')
-        self.cancel_button = (By.XPATH, '//button[@class="oxd-button oxd-button--medium oxd-button--ghost"]')
-        self.search_button = (By.XPATH, '//button[@type="submit" and contains(., "Search")]')
-
+        self.publish_toggle = (By.XPATH, 
+            '//div[contains(@class, "oxd-input-group")][.//label[contains(text(), "Publish in RSS Feed and Web Page")]]''//span[contains(@class, "oxd-switch-input")]')
+        
     def navigate_vacancy_tab(self):
         self.driver.find_element(*self.recruitment_tab).click()
         self.driver.find_element(*self.vacancies_tab).click()
