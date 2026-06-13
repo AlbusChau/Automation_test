@@ -1,8 +1,10 @@
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
+from pages.basePage import BasePage
 
-class LoginPage:
+class LoginPage(BasePage):
     def __init__(self, driver):
+        super().__init__(driver)
         # khởi tạo driver để giúp tương tác với Chrome
         self.driver = driver
         # danh sách các locator của các element trên trang login
@@ -12,9 +14,9 @@ class LoginPage:
         self.upgrade_btn = (By.XPATH, '//button[@class="oxd-glass-button orangehrm-upgrade-button"]')
 
     def login(self, username, password):
-        self.driver.find_element(*self.username_field).send_keys(username)
-        self.driver.find_element(*self.password_field).send_keys(password)
-        self.driver.find_element(*self.click_btn).click()
+        self.send_keys(self.username_field, username)
+        self.send_keys(self.password_field, password)
+        self.click(self.click_btn)
 
     def is_upgrade_button_displayed(self):
-        return WebDriverWait(self.driver, 10).until(lambda d: d.find_element(*self.upgrade_btn)).is_displayed()
+        return self.is_displayed(self.upgrade_btn)

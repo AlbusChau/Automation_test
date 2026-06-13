@@ -1,9 +1,11 @@
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from pages.basePage import BasePage
 
-class RecruitmentPage:
+class RecruitmentPage(BasePage):
     def __init__(self, driver):
+        super().__init__(driver)
         self.driver = driver
         # --- Navigation ---
         self.recruitment_tab = (By.XPATH, '//span[text()="Recruitment"]')
@@ -27,10 +29,14 @@ class RecruitmentPage:
         self.active_toggle = (By.XPATH, '//div[contains(@class, "oxd-input-group")][.//label[contains(text(), "Active")]]''//span[contains(@class, "oxd-switch-input")]')
         self.publish_toggle = (By.XPATH, 
             '//div[contains(@class, "oxd-input-group")][.//label[contains(text(), "Publish in RSS Feed and Web Page")]]''//span[contains(@class, "oxd-switch-input")]')
+        self.current_user = (By.XPATH, '//p[@class="oxd-userdropdown-name"]')
+        self.log_out_link = (By.LINK_TEXT, 'Logout')
+        self.search_results = (By.XPATH, 'div[@class="oxd-table-card"]')
+        self.login_title = (By.XPATH, '//h5[@class="oxd-text oxd-text--h5 orangehrm-login-title"]')
         
     def navigate_vacancy_tab(self):
-        self.driver.find_element(*self.recruitment_tab).click()
-        self.driver.find_element(*self.vacancies_tab).click()
+        self.click(self.recruitment_tab)
+        self.click(self.vacancies_tab)
 
     def get_page_title(self):
         return self.driver.find_element(*self.page_title).text
@@ -39,35 +45,39 @@ class RecruitmentPage:
         return "Add Vacancy" in self.get_page_title()
     
     def add_vacancy_name(self, vacancy_name):
-        self.driver.find_element(*self.vacancies_name).send_keys(vacancy_name)
+        self.send_keys(self.vacancies_name, vacancy_name)
     
     def select_job_title(self, job_title_name):
         # Click the dropdown container
-        self.driver.find_element(*self.job_title_dropdown).click()
-        
+        self.click(self.job_title_dropdown)
         # Select the option by its text content directly
         # This is safe because it uses the text to find the element
         option = (By.XPATH, f'//div[@role="option"]//span[text()="{job_title_name}"]')
-        self.driver.find_element(*option).click()
+        self.click(option)
 
     def add_description(self, description):
-        self.driver.find_element(*self.description).send_keys(description)
+        self.send_keys(self.description, description)
 
-    def add_hiring_manager(self, hiring_manager):
-        element = self.driver.find_element(*self.hiring_manager)
+    def get_current_user_login(self):
+        name = self.find_element(self.current_user)
+        return name.text
+
+    def add_hiring_manager(self):
+        element = self.find_element(self.hiring_manager)
         element.clear()
-        element.send_keys(hiring_manager)
-        option_xpath = (By.XPATH, f'//div[contains(@class, "oxd-input-group")][.//label[contains(text(), "{hiring_manager}")]]//input')
+        hiring_manager_name = self.get_current_user_login()
+        element.send_keys(hiring_manager_name)
+        option_xpath = (By.XPATH, f'//div[contains(@class, "oxd-input-group")][.//label[contains(text(), "{hiring_manager_name}")]]//input')
         wait = WebDriverWait(self.driver, 10)
         option = wait.until(EC.element_to_be_clickable(option_xpath))
         option.click()
 
     def add_number_of_position(self, number_of_position):
-        self.driver.find_element(*self.position_number).send_keys(number_of_position)
+        self.send_keys(self.position_number, number_of_position)
 
     def set_active_state(self, should_be_active: bool):
         # Find the element
-        toggle = self.driver.find_element(*self.active_toggle)
+        toggle = self.find_element(self.active_toggle)
         # Check if currently active by looking at the class name
         is_currently_active = "oxd-switch-input--active" in toggle.get_attribute("class")
         # Only click if the current state doesn't match the desired state
@@ -76,31 +86,41 @@ class RecruitmentPage:
 
     def set_publish_state(self, should_be_published: bool):
         # Find the element
-        toggle = self.driver.find_element(*self.publish_toggle)
+        toggle = self.find_element(self.publish_toggle)
         # Check if currently active by looking at the class name
         is_currently_published = "oxd-switch-input--active" in toggle.get_attribute("class")
         # Only click if the current state doesn't match the desired state
         if should_be_published != is_currently_published:
             toggle.click()
         
-    def add_vacancy(self, vacancy_name, job_title_name, description, hiring_manager, number_of_position, should_be_active, should_be_published):
+    def add_vacancy(self, vacancy_name, job_title_name, description, number_of_position, should_be_active, should_be_published):
+        self.click(self.add_button)
         self.add_vacancy_name(vacancy_name)
         self.select_job_title(job_title_name)
         self.add_description(description)
-        self.add_hiring_manager(hiring_manager)
+        self.add_hiring_manager()
         self.add_number_of_position(number_of_position)
         self.set_active_state(should_be_active)
         self.set_publish_state(should_be_published)
-        self.driver.find_element(*self.save_button).click()
+        self.click(self.save_button)
 
     def is_edit_vacancy_page(self):
         return "Edit Vacancy" in self.get_page_title()
     
     def is_vacancy_page(self):
-        self.driver.find_element(*self.cancel_button).click()  # Ensure we're on the vacancies page by clicking cancel if we're on add/edit
+        self.click(self.cancel_button)  # Ensure we're on the vacancies page by clicking cancel if we're on add/edit
         return "Vacancies" in self.get_page_title()
     
-    def search_vacancies(self, job_title, hiring_manager):
+    def search_vacancies(self, job_title):
         self.select_job_title(job_title)
-        self.add_hiring_manager(hiring_manager)
-        self.driver.find_element(*self.search_button).click()
+        self.add_hiring_manager()
+        self.click(self.search_button)
+
+    def verfiy_search_result(self):
+        row = self.find_element(self.search_results)
+        return len(row) > 0
+    
+    def is_log_out(self):
+        self.click(self.current_user)
+        self.click(self.log_out_link)
+        return self.is_displayed(self.login_title)

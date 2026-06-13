@@ -1,27 +1,21 @@
 import pytest
 from selenium import webdriver
 from selenium.webdriver.support.wait import WebDriverWait
+from utils.config_reader import ConfigReader
 
 @pytest.fixture
 def driver():
-
     # Launch a new Chrome browser instance
     driver = webdriver.Chrome()
-
     # Maximize the browser window for better visibility and to avoid issues caused by different screen sizes
     driver.maximize_window()
-
-    # Set an implicit wait of 10 seconds.
-    # Selenium will wait up to 10 seconds when trying to locate elements before throwing a NoSuchElementException.
-    driver.implicitly_wait(10)
-
-    # Navigate to the OrangeHRM demo website
-    driver.get("https://opensource-demo.orangehrmlive.com/")
-
-    # Yield returns the driver object to the test case.
-    # The test executes at this point.
+    # Load settings from your JSON via the ConfigReader
+    base_url = ConfigReader.get_base_url()
+    implicit_timeout = ConfigReader.get_timeout()
+    # Apply settings
+    driver.implicitly_wait(implicit_timeout)
+    driver.get(base_url)
     yield driver
-
     # After the test finishes, close the browser and release resources
     driver.quit()
 
