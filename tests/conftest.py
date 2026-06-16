@@ -2,6 +2,8 @@ import pytest
 from selenium import webdriver
 from selenium.webdriver.support.wait import WebDriverWait
 from utils.config_reader import ConfigReader
+import allure
+from allure_commons.types import AttachmentType
 
 @pytest.fixture
 def driver():
@@ -25,3 +27,17 @@ def wait(driver):
     # Reusable explicit wait (10s) for any page/test that needs it.
     # Pass alongside `driver` and use wait.until(EC...) for SPA transitions.
     return WebDriverWait(driver, 10)
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_makereport(item):
+    outcome = yield
+    report = outcome.get_result()
+
+    if report.when == "call" and report.failed:
+        driver = item.funcargs.get("driver")
+        if driver:
+            allure.attach(
+                driver.get_screenshot_as_png(),
+                name="Failure Screenshot",
+                attachment_type=AttachmentType.PNG
+            )

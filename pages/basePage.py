@@ -1,5 +1,9 @@
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support.ui import Select
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.by import By
+
+DEFAULT_WAIT = 10
 
 class BasePage:
     def __init__(self, driver):
@@ -7,10 +11,19 @@ class BasePage:
         self.driver = driver
 
     def find_element(self, locator):
-        return WebDriverWait(self.driver, 10).until(lambda d: d.find_element(*locator))
+        return WebDriverWait(self.driver, DEFAULT_WAIT).until(lambda d: d.find_element(*locator))
 
     def click(self, locator):
         self.find_element(locator).click()
+
+    def click_when_clickable(self, locator, timeout=DEFAULT_WAIT):
+        WebDriverWait(self.driver, timeout).until(EC.element_to_be_clickable(locator)).click()
+
+    def wait_for_visibility(self, locator, timeout=DEFAULT_WAIT):
+        return WebDriverWait(self.driver, timeout).until(EC.visibility_of_element_located(locator))
+
+    def find_elements(self, locator):
+        return self.driver.find_elements(*locator)
 
     def send_keys(self, locator, text):
         self.find_element(locator).send_keys(text)

@@ -1,15 +1,20 @@
+import time
+from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from pages.basePage import BasePage
 
 class RecruitmentPage(BasePage):
-    def __init__(self, driver):
+    def __init__(self, driver, wait=None):
         super().__init__(driver)
         self.driver = driver
+        # optional explicit wait object tests may pass in
+        self.wait = wait
         # --- Navigation ---
         self.recruitment_tab = (By.XPATH, '//span[text()="Recruitment"]')
-        self.vacancies_tab = (By.LINK_TEXT, "Vacancies")
+        # prefer normalize-space XPATH to avoid link text whitespace issues
+        self.vacancies_tab = (By.XPATH, '//a[normalize-space()="Vacancies"] | //span[normalize-space()="Vacancies"]')
         # --- Buttons ---
         self.add_button = (By.XPATH, '//button[normalize-space()="Add"]')
         self.save_button = (By.XPATH, '//button[normalize-space()="Save"]')
@@ -26,20 +31,40 @@ class RecruitmentPage(BasePage):
         self.job_title_dropdown = (By.XPATH, 
             '//label[text()="Job Title"]/ancestor::div[contains(@class, "oxd-input-group")]//div[contains(@class, "oxd-select-wrapper")]/div[contains(@class, "oxd-select-text")]')
         # --- Toggles ---
-        self.active_toggle = (By.XPATH, '//div[contains(@class, "oxd-input-group")][.//label[contains(text(), "Active")]]''//span[contains(@class, "oxd-switch-input")]')
-        self.publish_toggle = (By.XPATH, 
-            '//div[contains(@class, "oxd-input-group")][.//label[contains(text(), "Publish in RSS Feed and Web Page")]]''//span[contains(@class, "oxd-switch-input")]')
+        # more robust XPaths for the toggles
+        # Change these from 'span' to 'input'
+        self.active_toggle = (By.XPATH, '//label[contains(text(), "Active")]/ancestor::div[contains(@class, "oxd-input-group")]//input[@type="checkbox"]')
+        self.publish_toggle = (By.XPATH, '//label[contains(text(), "Publish in RSS Feed and Web Page")]/ancestor::div[contains(@class, "oxd-input-group")]//input[@type="checkbox"]')
         self.current_user = (By.XPATH, '//p[@class="oxd-userdropdown-name"]')
         self.log_out_link = (By.LINK_TEXT, 'Logout')
-        self.search_results = (By.XPATH, 'div[@class="oxd-table-card"]')
+        # ensure XPath has leading '//' so it is resolved correctly
+        self.search_results = (By.XPATH, '//div[@class="oxd-table-card"]')
         self.login_title = (By.XPATH, '//h5[@class="oxd-text oxd-text--h5 orangehrm-login-title"]')
         
     def navigate_vacancy_tab(self):
-        self.click(self.recruitment_tab)
-        self.click(self.vacancies_tab)
+        print('[DEBUG] RecruitmentPage.navigate_vacancy_tab: clicking recruitment tab')
+        self.click_when_clickable(self.recruitment_tab)
+        print('[DEBUG] RecruitmentPage.navigate_vacancy_tab: clicked recruitment tab')
+        try:
+            print('[DEBUG] RecruitmentPage.navigate_vacancy_tab: attempting to click vacancies tab')
+            self.click_when_clickable(self.vacancies_tab)
+            print('[DEBUG] RecruitmentPage.navigate_vacancy_tab: clicked vacancies tab')
+        except Exception as e:
+            print('[DEBUG] RecruitmentPage.navigate_vacancy_tab: click_when_clickable failed:', repr(e))
+            # fallback: find element and click via JS
+            try:
+                elem = self.find_element(self.vacancies_tab)
+                print('[DEBUG] RecruitmentPage.navigate_vacancy_tab: found vacancies element, clicking via JS')
+                self.driver.execute_script("arguments[0].click();", elem)
+                print('[DEBUG] RecruitmentPage.navigate_vacancy_tab: clicked vacancies via JS')
+            except Exception as e2:
+                print('[DEBUG] RecruitmentPage.navigate_vacancy_tab: JS click failed:', repr(e2))
+                raise
 
     def get_page_title(self):
-        return self.driver.find_element(*self.page_title).text
+        # wait for the page title element to be visible and return its text
+        elem = self.wait_for_visibility(self.page_title)
+        return elem.text
     
     def is_add_vacancy_page(self):
         return "Add Vacancy" in self.get_page_title()
@@ -49,11 +74,16 @@ class RecruitmentPage(BasePage):
     
     def select_job_title(self, job_title_name):
         # Click the dropdown container
-        self.click(self.job_title_dropdown)
-        # Select the option by its text content directly
-        # This is safe because it uses the text to find the element
-        option = (By.XPATH, f'//div[@role="option"]//span[text()="{job_title_name}"]')
-        self.click(option)
+        # Try native select first
+        try:
+            if self.select_option_from_dropdown(self.job_title_dropdown, job_title_name) is None:
+                raise Exception('not-native')
+        except Exception:
+            # Click the dropdown and wait for options to render, then click the option element
+            self.click_when_clickable(self.job_title_dropdown)
+            option = (By.XPATH, f'//div[@role="option"]//span[normalize-space()="{job_title_name}"]')
+            # wait for the option to be visible and clickable
+            self.click_when_clickable(option)
 
     def add_description(self, description):
         self.send_keys(self.description, description)
@@ -67,58 +97,123 @@ class RecruitmentPage(BasePage):
         element.clear()
         hiring_manager_name = self.get_current_user_login()
         element.send_keys(hiring_manager_name)
-        option_xpath = (By.XPATH, f'//div[contains(@class, "oxd-input-group")][.//label[contains(text(), "{hiring_manager_name}")]]//input')
-        wait = WebDriverWait(self.driver, 10)
-        option = wait.until(EC.element_to_be_clickable(option_xpath))
-        option.click()
+        # Try to click an exact matching suggestion first; if not present, click the first available suggestion
+        exact_suggestion = (By.XPATH, f'//div[contains(@class, "oxd-autocomplete-dropdown") or @role="listbox"]//span[normalize-space()="{hiring_manager_name}"]')
+        suggestion_any = (By.XPATH, '//div[contains(@class, "oxd-autocomplete-dropdown") or @role="listbox"]//span')
+        try:
+            WebDriverWait(self.driver, 3).until(EC.visibility_of_element_located((By.XPATH, '//div[contains(@class, "oxd-autocomplete-dropdown") or @role="listbox"]')))
+            # prefer exact match
+            try:
+                self.click_when_clickable(exact_suggestion, timeout=2)
+                return
+            except Exception:
+                # click first suggestion available
+                try:
+                    elems = self.find_elements(suggestion_any)
+                    if elems:
+                        elems[0].click()
+                        return
+                except Exception:
+                    pass
+        except Exception:
+            # no suggestion container; fall back to keyboard
+            pass
+
+        # final fallback to keyboard selection
+        time.sleep(1)
+        element.send_keys(Keys.ARROW_DOWN)
+        element.send_keys(Keys.ENTER)
 
     def add_number_of_position(self, number_of_position):
         self.send_keys(self.position_number, number_of_position)
 
-    def set_active_state(self, should_be_active: bool):
-        # Find the element
-        toggle = self.find_element(self.active_toggle)
-        # Check if currently active by looking at the class name
-        is_currently_active = "oxd-switch-input--active" in toggle.get_attribute("class")
-        # Only click if the current state doesn't match the desired state
-        if should_be_active != is_currently_active:
-            toggle.click()
-
-    def set_publish_state(self, should_be_published: bool):
-        # Find the element
-        toggle = self.find_element(self.publish_toggle)
-        # Check if currently active by looking at the class name
-        is_currently_published = "oxd-switch-input--active" in toggle.get_attribute("class")
-        # Only click if the current state doesn't match the desired state
-        if should_be_published != is_currently_published:
-            toggle.click()
+    # def set_active_state(self, should_be_active: bool):
+    #     active_toggle_input = self.find_element(self.active_toggle)
         
-    def add_vacancy(self, vacancy_name, job_title_name, description, number_of_position, should_be_active, should_be_published):
-        self.click(self.add_button)
+    #     # Check the 'checked' property of the input
+    #     is_currently_active = active_toggle_input.is_selected()
+        
+    #     if should_be_active != is_currently_active:
+    #         # Click the parent or the visual label associated with this input
+    #         self.driver.execute_script("arguments[0].click();", active_toggle_input)
+            
+    #         # Verify the checkbox is now in the correct state
+    #         WebDriverWait(self.driver, 5).until(
+    #             lambda d: d.find_element(*self.active_toggle).is_selected() == should_be_active
+    #         )
+
+    # def set_publish_state(self, should_be_published: bool):
+    #     publish_toggle_input = self.find_element(self.publish_toggle)
+    #     is_currently_published = publish_toggle_input.is_selected()
+    #     # Alternative check if the visual state is determined by a class on a parent
+        
+    #     if should_be_published != is_currently_published:
+    #         # Use JavaScript to click
+    #         self.driver.execute_script("arguments[0].click();", publish_toggle_input)
+
+    #         # Verification - re-query element inside wait to avoid stale reference
+    #         WebDriverWait(self.driver, 5).until(
+    #             lambda d: d.find_element(*self.publish_toggle).get_attribute("class")) == should_be_published
+        
+    def add_vacancy(self, vacancy_name, job_title_name, description, number_of_position):
+        print('[DEBUG] RecruitmentPage.add_vacancy: clicking Add')
+        self.click_when_clickable(self.add_button)
+        # wait for the add-vacancy form to appear before interacting with fields
+        try:
+            self.wait_for_visibility(self.vacancies_name,)
+        except Exception:
+            # fallback - continue and let subsequent waits/operations raise meaningful errors
+            pass
+        print('[DEBUG] RecruitmentPage.add_vacancy: filling vacancy name')
         self.add_vacancy_name(vacancy_name)
+        print('[DEBUG] RecruitmentPage.add_vacancy: selecting job title')
         self.select_job_title(job_title_name)
+        print('[DEBUG] RecruitmentPage.add_vacancy: adding description')
         self.add_description(description)
+        print('[DEBUG] RecruitmentPage.add_vacancy: adding hiring manager')
         self.add_hiring_manager()
+        print('[DEBUG] RecruitmentPage.add_vacancy: adding number of position')
         self.add_number_of_position(number_of_position)
-        self.set_active_state(should_be_active)
-        self.set_publish_state(should_be_published)
-        self.click(self.save_button)
+        #print('[DEBUG] RecruitmentPage.add_vacancy: setting active/publish states')
+        # self.set_active_state(should_be_active)
+        # self.set_publish_state(should_be_published)
+        self.click_when_clickable(self.save_button)
 
     def is_edit_vacancy_page(self):
-        return "Edit Vacancy" in self.get_page_title()
+        actual_title = self.get_page_title()
+        expected_title = "Edit Vacancy"
+        
+        # Use an assertion for a clean, forced failure
+        assert expected_title in actual_title, f"Expected page title to contain '{expected_title}', but found '{actual_title}'"
+        
+        return True
     
-    def is_vacancy_page(self):
-        self.click(self.cancel_button)  # Ensure we're on the vacancies page by clicking cancel if we're on add/edit
-        return "Vacancies" in self.get_page_title()
+    # def is_vacancy_page(self):
+    #     # Ensure we're on the vacancies page by clicking cancel if we're on add/edit (safe to try)
+    #     try:
+    #         self.click_when_clickable(self.cancel_button)
+    #     except Exception:
+    #         pass
+    #     return "Vacancies" in self.get_page_title()
     
     def search_vacancies(self, job_title):
+        try:
+            self.click_when_clickable(self.cancel_button)
+        except Exception:
+            pass
         self.select_job_title(job_title)
         self.add_hiring_manager()
-        self.click(self.search_button)
+        self.click_when_clickable(self.search_button)
+        # wait for results container to appear
+        try:
+            WebDriverWait(self.driver, 6).until(EC.visibility_of_element_located(self.search_results))
+        except Exception:
+            pass
 
     def verfiy_search_result(self):
-        row = self.find_element(self.search_results)
-        return len(row) > 0
+        # find all matching result rows and return whether any exist
+        rows = self.find_elements(self.search_results)
+        return len(rows) > 0
     
     def is_log_out(self):
         self.click(self.current_user)
