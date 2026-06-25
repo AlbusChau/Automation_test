@@ -32,3 +32,9 @@ class ConfigReader:
     def get_timeout():
         """Get timeout value from configuration"""
         return ConfigReader.load_config()['timeouts']["implicit"]
+    
+    @staticmethod
+    def is_headless():
+        """Get the headless status from configuration"""
+        # .get() is used here to provide a default of False if the key is missing
+        return ConfigReader.load_config().get('headless', False)

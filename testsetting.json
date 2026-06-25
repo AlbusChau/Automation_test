@@ -1,5 +1,6 @@
 {
     "base_url": "https://opensource-demo.orangehrmlive.com/",
+    "headless": true,
     "credentials": {
         "username": "Admin",
         "password": "admin123"
@@ -8,4 +9,5 @@
         "implicit": 10,
         "page_load": 30
     }
+    
 }
