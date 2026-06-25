@@ -1,9 +1,11 @@
+import pytest
 from utils.config_reader import ConfigReader
 from pages.loginPage import LoginPage
 from pages.recruitmentPage import RecruitmentPage
 import uuid
 
 class TestAddVacancy:
+    @pytest.mark.smoke
     def test_add_vacancy(self, driver):
         #Login
         login_page = LoginPage(driver)

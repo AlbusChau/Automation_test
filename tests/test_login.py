@@ -1,6 +1,8 @@
+import pytest
 from pages.loginPage import LoginPage
 from utils.config_reader import ConfigReader
 class TestLogin:
+    @pytest.mark.smoke
     def test_login(self, driver):
         login_page = LoginPage(driver)
         # Fetch credentials from the JSON file via ConfigReader

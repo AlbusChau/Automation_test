@@ -38,8 +38,8 @@ jobs:
           google-chrome --version
           chromedriver --version
 
-      - name: Run tests
-        run: pytest -v tests/test_login.py
+      - name: Run smoke tests
+        run: pytest -m smoke -v
 
       - name: Upload Allure results
         if: always()
