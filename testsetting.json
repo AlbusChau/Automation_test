@@ -1,5 +1,6 @@
 {
     "base_url": "https://opensource-demo.orangehrmlive.com/",
+    "api_base_url":"https://dummyjson.com",
     "headless": true,
     "credentials": {
         "username": "Admin",
